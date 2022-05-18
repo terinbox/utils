@@ -33,26 +33,21 @@ var ulidPool = sync.Pool{
 	},
 }
 
-func genUlid() (string, error) {
+// Generates a ULID as described at: "github.com/oklog/ulid/v2"
+// Panics on failure
+func ULID() string {
 	ui, ok := ulidPool.Get().(*ulidInit)
 	if !ok {
-		return "", WrapErr(fmt.Errorf("pool didn't return a MonotonicEntropy"))
+		ulidPool.Put(ui)
+		panic(WrapErr(fmt.Errorf("pool didn't return a MonotonicEntropy")))
 	}
-	defer ulidPool.Put(ui)
 	ul, err := ulid.New(ulid.Timestamp(ui.t), ui.en)
 	if err != nil {
-		return "", WrapErr(err, "ulid.new failed")
+		ulidPool.Put(ui)
+		panic(WrapErr(err, "ulid.new failed"))
 	}
-	return ul.String(), nil
-}
-
-// Generates a ULID. Panics on failure
-func ULID() string {
-	s, err := genUlid()
-	if err != nil {
-		panic(WrapErr(err))
-	}
-	return s
+	ulidPool.Put(ui)
+	return ul.String()
 }
 
 // Wraps the given error string with a prefix of
@@ -68,6 +63,7 @@ func WrapErr(err error, msgs ...string) error {
 }
 
 // Random Numbers and String
+// Based on the amazing SO answer: https://stackoverflow.com/a/31832326/2013671
 const (
 	letterIdxBits = 6                    // 6 bits to represent a letter index
 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
@@ -185,14 +181,14 @@ func TimeHash128a() string {
 	return GenHash128a([]byte(fmt.Sprintf("%d", time.Now().UnixNano())))
 }
 
-// Returns a UUID string without the `-`
-// Panics if failed to generate. Uses `github.com/google/uuid` internally
+// Returns a UUID v4 string
+// Panics if failed to generate. Uses `github.com/google/uuid`
 func UUID() string {
 	u, err := uuid.NewUUID()
 	if err != nil {
 		panic(WrapErr(err, "gen failed"))
 	}
-	return strings.ReplaceAll(u.String(), "-", "")
+	return u.String()
 }
 
 // Obfuscates email IDs, phones, names
@@ -239,7 +235,7 @@ func XSSSanitizeStruct(v reflect.Value) {
 
 // Trims all string type and values in string pointer in a struct.
 // Given a struct `s` - accepts reflect.Value(&s)
-func trimStruct(v reflect.Value) {
+func TrimStruct(v reflect.Value) {
 	if v.Kind() != reflect.Ptr {
 		return
 	}
@@ -317,6 +313,8 @@ var zstdEncPool = sync.Pool{
 	},
 }
 
+// Get bytes provided in `in`, compressed in `out`
+// Uses: "github.com/klauspost/compress/zstd"
 func Compress(in io.Reader, out io.Writer) error {
 	e := zstdEncPool.Get()
 	enc, ok := e.(*zstd.Encoder)
@@ -344,6 +342,9 @@ var zstdDecPool = sync.Pool{
 	},
 }
 
+// Provide bytes pre-compressed using zstd in `in` and get them
+// decompressed in `out`
+// Uses: "github.com/klauspost/compress/zstd"
 func Decompress(in io.Reader, out io.Writer) error {
 	dec := zstdDecPool.Get()
 	d, ok := dec.(*zstd.Decoder)
