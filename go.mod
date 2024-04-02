@@ -1,9 +1,9 @@
-module github.com/daimaou92/utils
+module github.com/terinbox/utils
 
-go 1.18
+go 1.22.1
 
 require (
-	github.com/google/uuid v1.3.0
-	github.com/klauspost/compress v1.15.4
-	github.com/oklog/ulid/v2 v2.0.2
+	github.com/google/uuid v1.6.0
+	github.com/klauspost/compress v1.17.7
+	github.com/oklog/ulid/v2 v2.1.0
 )
